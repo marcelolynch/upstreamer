@@ -1,2 +1,5 @@
 .lake/
 build/
+
+# Local-only notes and scratch (blog draft, personal cheatsheet, etc.).
+.local/

@@ -15,9 +15,10 @@ structure ImportLine where
   raw     : String
   deriving Repr
 
-/-- Allowed module-name prefixes for an upstreaming candidate (module path,
-    matched as `prefix.` or exact equality). -/
-def allowedPrefixes : List String :=
+/-- Default allowed module-name prefixes — what every Mathlib-flavored
+    project tends to be allowed to import. The upstream namespace itself
+    (e.g. `Mathlib`) is also unioned in by callers. -/
+def defaultAllowedPrefixes : List String :=
   ["Mathlib", "Init", "Std", "Lean", "Batteries", "Aesop", "Qq", "ProofWidgets",
    "ImportGraph", "LeanSearchClient", "Plausible"]
 
@@ -61,25 +62,24 @@ def extractImports (contents : String) : Array ImportLine := Id.run do
 def inNamespace (ns : String) (mod : String) : Bool :=
   mod == ns || mod.startsWith (ns ++ ".")
 
-/-- Is `mod` allowed to appear in a candidate's imports? -/
-def isAllowedImport (mod : String) : Bool :=
-  allowedPrefixes.any (inNamespace · mod)
-
 /-- Classify each import in `imports`, returning ones that block upstreaming.
     The return value is a pair `(stagingViolations, projectViolations)`:
-    * `stagingViolations` — imports of the form `<Project>.<Mathlib|ToMathlib>.…`
-    * `projectViolations` — other `<Project>.…` imports
-    Either being non-empty is a hard refusal. -/
+    * `stagingViolations` — imports of the staging namespace
+    * `projectViolations` — other downstream-internal imports
+    Either being non-empty is a hard refusal. The `allowedPrefixes` list
+    decides what passes (typically `defaultAllowedPrefixes` ∪
+    `[upstreamNamespace]`). -/
 def classifyImports
     (projectName : String)
-    (stagingNamespaces : List String)  -- e.g. ["Carleson.ToMathlib", "Carleson.Mathlib"]
+    (stagingNamespaces : List String)  -- e.g. ["Carleson.ToMathlib"]
+    (allowedPrefixes : List String)    -- e.g. ["Mathlib", "Init", "Std", …]
     (imports : Array ImportLine)
     : Array ImportLine × Array ImportLine := Id.run do
   let mut staging : Array ImportLine := #[]
   let mut project : Array ImportLine := #[]
   for imp in imports do
     -- Allowed prefixes (Mathlib, etc.) clear the import outright.
-    if isAllowedImport imp.module then
+    if allowedPrefixes.any (inNamespace · imp.module) then
       continue
     -- Staging?
     if stagingNamespaces.any (inNamespace · imp.module) then
@@ -92,6 +92,7 @@ def classifyImports
     -- Otherwise: an unknown third-party module (e.g. Carleson depends on
     -- checkdecls). We let it pass — if it's not in mathlib's lakefile, mathlib
     -- won't build it and phase 5 will surface the error there.
+    pure ()
   return (staging, project)
 
 end Upstreamer.ImportScan

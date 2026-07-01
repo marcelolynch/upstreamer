@@ -69,4 +69,35 @@ def readProjectName (projectDir : System.FilePath) : IO (Option String) := do
 def mkdirP (dir : System.FilePath) : IO Unit :=
   IO.FS.createDirAll dir
 
+/-- Run `lake <args>` in `cwd`. With `verbose = true`, the child inherits
+    the parent's stdout/stderr so progress streams live. With
+    `verbose = false`, both streams are captured; on non-zero exit, the
+    captured output is dumped to our own streams so the failure is still
+    debuggable. On success in quiet mode, nothing is printed.
+
+    Returns the child's exit code. -/
+def runLake (verbose : Bool) (cwd : System.FilePath) (args : Array String) : IO UInt32 := do
+  if verbose then
+    let child ← IO.Process.spawn { cmd := "lake", args, cwd := cwd.toString }
+    child.wait
+  else
+    let out ← IO.Process.output { cmd := "lake", args, cwd := cwd.toString }
+    if out.exitCode ≠ 0 then
+      if !out.stdout.isEmpty then IO.print out.stdout
+      if !out.stderr.isEmpty then IO.eprint out.stderr
+    return out.exitCode
+
+/-- Resolve a user-supplied candidate argument. Accepts either:
+      * a file path — relative or absolute, ending in `.lean` or containing
+        a path separator (`/` or `\\`); resolved against the CWD;
+      * a dotted Lean module name like `Carleson.ToMathlib.MinLayer`;
+        resolved against the downstream root.
+    Always returns an absolute path; raises if the file doesn't exist. -/
+def resolveCandidateArg (downstreamAbs : System.FilePath) (arg : String) : IO System.FilePath := do
+  let looksLikePath := arg.endsWith ".lean" || arg.contains '/' || arg.contains '\\'
+  let asPath : System.FilePath :=
+    if looksLikePath then System.FilePath.mk arg
+    else downstreamAbs / (moduleToPath arg)
+  IO.FS.realPath asPath
+
 end Upstreamer.Util

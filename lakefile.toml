@@ -3,7 +3,8 @@ defaultTargets = ["upstreamer"]
 
 [[require]]
 name = "hopscotch"
-path = "../../hopscotch"
+git = "https://github.com/leanprover-community/hopscotch"
+rev = "v1.5.0"
 
 [[require]]
 name = "Cli"
