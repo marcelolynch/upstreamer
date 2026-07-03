@@ -274,8 +274,8 @@ cd …/toric   && git push -u origin upstream/linearcombination
 # Use the exact "to abandon" lines from commit's summary to return to clean
 # (the original ref is captured at commit-time so the SHAs / branch names
 #  are correct):
-cd …/mathlib && git checkout <pin>  && git branch -D upstream/linearcombination  # keep the branch live on remote, just not checked out locally
-cd …/toric   && git checkout master # branch still exists too if you want to push amends
+cd …/mathlib && git checkout ed585ca0f6 && git branch -D upstream/linearcombination  # keep the branch live on remote, just not checked out locally
+cd …/toric   && git checkout 39eff37    # branch still exists too if you want to push amends
 
 # === Candidate B ===
 upstreamer Toric.Mathlib.Algebra.Polynomial.Bivariate …
@@ -296,8 +296,8 @@ stacked branch.
 `commit` already prints the exact commands; just paste them.
 
 ```bash
-cd …/mathlib && git checkout <pin>  && git branch -D upstream/foo
-cd …/toric   && git checkout master && git branch -D upstream/foo
+cd …/mathlib && git checkout ed585ca0f6 && git branch -D upstream/foo
+cd …/toric   && git checkout 39eff37    && git branch -D upstream/foo
 ```
 
 **End state**: both repos clean, no record of the attempt.
@@ -325,12 +325,12 @@ git -C …/mathlib status --short
 
 ```bash
 cd …/toric
-git checkout master                  # if you ended up on a branch
+git checkout 39eff375c59f4897d348b2aa88b7a5399839a1c5   # the toric commit the guide pins (or `master` if you weren't pinned)
 git checkout . && git clean -fd      # discard untracked + modified
 lake update mathlib                  # belt-and-suspenders; usually unnecessary after a clean revert
 
 cd …/mathlib
-git checkout <pin>                   # the commit toric's manifest pins
+git checkout ed585ca0f67ec631ea987466127e022c11849b43   # the mathlib commit toric pins
 git checkout . && git clean -fd
 git branch | grep '^  upstream/' | xargs -r git branch -D
 ```

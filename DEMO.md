@@ -64,22 +64,23 @@ code, which makes scripting awkward.)
 ```bash
 cd ~/upstreamer-project
 git clone https://github.com/YaelDillies/toric.git
+git -C toric checkout 39eff375c59f4897d348b2aa88b7a5399839a1c5   # the toric commit this guide was validated against
 ```
 
 ### 3. Align the local mathlib to toric's pinned commit
 
-So API drift doesn't masquerade as upstreaming-readiness failures. toric
-pins its mathlib in `lake-manifest.json`; check out that exact commit in
-your local clone and prime the olean cache:
+So API drift doesn't masquerade as upstreaming-readiness failures. The
+toric commit above pins its mathlib at `ed585ca0`; check out that exact
+commit in your local mathlib clone and prime the olean cache:
 
 ```bash
-# The commit toric's manifest pins (read it from toric/lake-manifest.json):
-PIN=$(python3 -c "import json;print([p['rev'] for p in json.load(open('toric/lake-manifest.json'))['packages'] if p['name']=='mathlib'][0])")
-
 cd ~/upstreamer-project/mathlib
-git checkout "$PIN"
+git checkout ed585ca0f67ec631ea987466127e022c11849b43   # the mathlib commit toric pins at the commit above
 lake exe cache get        # downloads ~8.6k prebuilt Mathlib oleans
 ```
+
+(To follow along with a newer toric instead, drop the two `checkout`s and
+read toric's current mathlib pin from `toric/lake-manifest.json`.)
 
 `upstreamer baseline` (below) confirms this worked.
 
@@ -250,8 +251,8 @@ upstreamer commit
     2. cd …/toric   && git push -u origin upstream/linearcombination
 
   to abandon these branches and return to the previous state:
-    cd …/mathlib && git checkout <pin> && git branch -D upstream/linearcombination
-    cd …/toric   && git checkout master && git branch -D upstream/linearcombination
+    cd …/mathlib && git checkout ed585ca0f6 && git branch -D upstream/linearcombination
+    cd …/toric   && git checkout 39eff37    && git branch -D upstream/linearcombination
 
   ⚠ collision: the upstream branch contains a `_Upstreamed.lean` file.
     Before opening the upstream PR, manually merge it with the existing
@@ -380,11 +381,11 @@ PR branches and confused):
 ```bash
 # toric
 cd ~/upstreamer-project/toric
-git checkout master && git checkout . && git clean -fd && lake update mathlib
+git checkout 39eff375c59f4897d348b2aa88b7a5399839a1c5 && git checkout . && git clean -fd && lake update mathlib
 
 # mathlib  (re-check-out toric's pinned commit)
 cd ~/upstreamer-project/mathlib
-git checkout <pin>
+git checkout ed585ca0f67ec631ea987466127e022c11849b43
 git checkout . && git clean -fd
 git branch | grep '^  upstream/' | xargs -r git branch -D
 ```
