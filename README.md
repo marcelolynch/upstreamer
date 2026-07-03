@@ -2,6 +2,7 @@
 
 A prototype tool that automates the "is this file ready to upstream?"
 loop for downstream projects (like
+[toric](https://github.com/YaelDillies/toric) or
 [Carleson](https://github.com/leanprover-community/carleson)) that stage
 upstreaming candidates under a `Mathlib/` or `ToMathlib/` subdirectory.
 
@@ -37,8 +38,8 @@ lake exe upstreamer <candidate.lean> \
   --upstream-path /path/to/local/upstream \
   --preset mathlib \
   [--downstream /path/to/downstream] \
-  [--target Mathlib/Order/MinLayer.lean] \
-  [--search-root Carleson.ToMathlib] \
+  [--target Mathlib/LinearAlgebra/Finsupp/LinearCombination.lean] \
+  [--search-root Toric.Mathlib] \
   [--no-verify-clean]
 ```
 
@@ -92,12 +93,16 @@ For a Mathlib downstream:
 
 ```
 preset        = mathlib
-upstream-path = ../mathlib-local
+upstream-path = ../mathlib
 ```
 
 That's all you need. With this in place, every command shortens to
 `upstreamer <subcommand> <candidate>` from anywhere inside the
 downstream repo.
+
+If the downstream isn't your repo, don't commit `.upstreamer` — it would
+dirty the tree and the tool refuses to run dirty. Exclude it locally with
+`echo .upstreamer >> .git/info/exclude` instead.
 
 For a non-Mathlib upstream:
 

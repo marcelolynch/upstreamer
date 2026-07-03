@@ -1,9 +1,10 @@
 # Demo: end-to-end upstreaming with `upstreamer`
 
-A complete walkthrough using Carleson + a local mathlib clone. The trick
-is to **set up `.upstreamer` once** and then run every command with
-nothing but the candidate name. The tool walks upward from CWD to find
-the config and applies its defaults.
+A complete walkthrough using [toric](https://github.com/YaelDillies/toric)
+(a downstream that stages Mathlib candidates under `Toric/Mathlib/…`) and a
+local mathlib clone. The trick is to **set up `.upstreamer` once** and then
+run every command with nothing but the candidate name. The tool walks
+upward from CWD to find the config and applies its defaults.
 
 ## Phase reference
 
@@ -26,6 +27,16 @@ else gets a clean refusal.
 
 ## Setup (do once)
 
+The examples assume a workspace laid out as siblings — adjust the paths to
+wherever you keep things:
+
+```
+~/upstreamer-project/
+├── upstreamer     # this tool
+├── toric          # the downstream (github.com/YaelDillies/toric)
+└── mathlib        # a local mathlib clone at toric's pinned commit
+```
+
 ### 1. Build the tool
 
 ```bash
@@ -42,45 +53,71 @@ verbatim:
 alias upstreamer=~/upstreamer-project/upstreamer/.lake/build/bin/upstreamer
 
 # Option B: put the build dir on PATH.
-export PATH="~/upstreamer-project/upstreamer/.lake/build/bin:$PATH"
+export PATH="$HOME/upstreamer-project/upstreamer/.lake/build/bin:$PATH"
 ```
 
 (Avoid `lake exe upstreamer …` — it works but masks the binary's exit
 code, which makes scripting awkward.)
 
-### 2. Align the local mathlib to Carleson's pinned commit
-
-So API drift doesn't masquerade as upstreaming-readiness failures:
+### 2. Clone the downstream
 
 ```bash
-cd ~/upstreamer-project/mathlib-local
-git fetch upstream 1a4917a18b30ea1333c195e597067fe044ac9176
-git checkout 1a4917a18b30ea1333c195e597067fe044ac9176
-lake exe cache get        # primes ~7.6k Mathlib oleans
+cd ~/upstreamer-project
+git clone https://github.com/YaelDillies/toric.git
 ```
 
-### 3. Drop a `.upstreamer` in Carleson
+### 3. Align the local mathlib to toric's pinned commit
+
+So API drift doesn't masquerade as upstreaming-readiness failures. toric
+pins its mathlib in `lake-manifest.json`; check out that exact commit in
+your local clone and prime the olean cache:
+
+```bash
+# The commit toric's manifest pins (read it from toric/lake-manifest.json):
+PIN=$(python3 -c "import json;print([p['rev'] for p in json.load(open('toric/lake-manifest.json'))['packages'] if p['name']=='mathlib'][0])")
+
+cd ~/upstreamer-project/mathlib
+git checkout "$PIN"
+lake exe cache get        # downloads ~8.6k prebuilt Mathlib oleans
+```
+
+`upstreamer baseline` (below) confirms this worked.
+
+### 4. Drop a `.upstreamer` in toric
 
 This is the magic that makes every later command short. Save as
-`~/upstreamer-project/carleson/.upstreamer`:
+`~/upstreamer-project/toric/.upstreamer`:
 
 ```ini
-# Carleson upstreamer config.
+# toric upstreamer config.
 
 # The `mathlib` preset wires up the well-known values for projects that
 # upstream to leanprover-community/mathlib4:
 #   - upstream-name      = mathlib   (the [[require]] dep name in lakefile.toml)
 #   - upstream-namespace = Mathlib   (target-path prefix and state-detection filter)
 #   - search-root auto-detection via "Mathlib" / "ToMathlib" path segments
+#     (here, `Toric.Mathlib` is detected from the `Mathlib` segment)
 preset = mathlib
 
-# Filesystem path to the local mathlib4 clone. Relative paths are
+# Filesystem path to the local mathlib clone. Relative paths are
 # resolved against this file's directory.
-upstream-path = ../mathlib-local
+upstream-path = ../mathlib
 ```
 
 Two lines (plus comments) is everything the tool needs; the rest comes
 from the preset.
+
+> **Gotcha — keep the config out of git.** `.upstreamer` is an untracked
+> file, so it makes toric's working tree "dirty", and the tool refuses to
+> run on a dirty tree. Since toric isn't your repo, don't commit it —
+> exclude it locally instead:
+>
+> ```bash
+> echo ".upstreamer" >> ~/upstreamer-project/toric/.git/info/exclude
+> ```
+>
+> (In your own downstream you'd add `.upstreamer` to the tracked
+> `.gitignore` and commit that.)
 
 A non-Mathlib project would write:
 
@@ -98,61 +135,99 @@ refuses otherwise.
 
 ## Walkthrough
 
-Every command below assumes you're somewhere inside the carleson repo (the
+Every command below assumes you're somewhere inside the toric repo (the
 config walk-up handles the rest). The candidate argument can be a file
 path or a dotted module name.
 
 ### 0. `baseline` — does the downstream even build against this mathlib?
 
 ```bash
-cd ~/upstreamer-project/carleson
+cd ~/upstreamer-project/toric
 upstreamer baseline
 ```
 
+```
+✓ both working trees clean
+→ rewriting `mathlib` dep in …/toric's lakefile to …/mathlib
+→ lake update mathlib  (in …/toric)
+→ lake build  (in …/toric)
+→ restoring downstream lakefile + lake-manifest
+  ✓ baseline OK
+  duration: 78s
+RESULT	status=baseline-ok	duration_ms=78683
+```
+
 - Refuses if either tree is dirty.
-- Redirects lakefile, runs `lake build` in carleson, restores lakefile.
-- ~40s on a primed cache.
+- Redirects the lakefile, runs `lake build` in toric, restores the lakefile.
+- ~80s on a primed cache (toric is small; it's mostly compiling toric's
+  own files against the cached mathlib).
 - If this fails, *do not proceed*: any later downstream-build failure
   will be upstream API drift, not the candidate's fault.
 
 ### 1. `stage --dry-run` — triage candidates
 
-Sub-second per file. Sweep the dashboard's `ready_to_upstream` list:
+Sub-second per file. Sweep the whole staging area:
 
 ```bash
-for f in $(find Carleson/ToMathlib -name '*.lean'); do
+for f in $(find Toric/Mathlib -name '*.lean'); do
   upstreamer stage "$f" --dry-run 2>&1 | grep -E '^(RESULT|✗|upstreamer)' | head -1
 done
 ```
 
-Each `RESULT` line tells you the target path and whether there's a
-collision. Files that import sibling staging modules surface as
-`import audit failed` and don't make it to staging.
+A clean candidate reports its target and whether it collides with an
+existing Mathlib file:
+
+```
+✓ candidate imports look clean (1 import lines audited)
+  ✓ dry-run: candidate would stage cleanly; no files touched
+    source:   Toric.Mathlib.LinearAlgebra.Finsupp.LinearCombination
+    target:   Mathlib.LinearAlgebra.Finsupp.LinearCombination_Upstreamed
+              (target file already exists; would use _Upstreamed suffix)
+RESULT	status=stage-dry-run-ok	source=…	target=…_Upstreamed	collision=true	duration_ms=642
+```
+
+A candidate that imports a sibling staging file is refused up front:
+
+```
+✗ candidate imports sibling staging files:
+    line 11: Toric.Mathlib.RingTheory.Bialgebra.TensorProduct
+  upstream those first, then retry.
+upstreamer stage: import audit failed
+```
+
+> **Note — `collision=true` is the common case here.** toric stages files
+> at `Toric/Mathlib/<mathlib-path>`, i.e. it *extends existing* Mathlib
+> modules (each candidate `public import`s the same-named `Mathlib.…`
+> file). So the target path usually already exists, and the tool copies to
+> a `…_Upstreamed.lean` sibling rather than clobbering it. You merge the
+> two by hand before opening the real PR. A downstream that stages
+> brand-new files (no matching Mathlib path) gets `collision=false` and no
+> suffix.
 
 ### 2. `stage` — set up the workspace, no builds
 
 ```bash
-upstreamer stage Carleson.ToMathlib.MinLayer --target Mathlib/Order/MinLayer.lean
+upstreamer stage Toric.Mathlib.LinearAlgebra.Finsupp.LinearCombination
 ```
 
-About 3 seconds (file copy + `lake update mathlib`). Workspace ends in
-the same shape `validate` would produce, but **nothing is verified to
-build**. The summary tells you the canonical mathlib path so you can
-start editing.
+About 5 seconds (file copy + `lake update mathlib`). Workspace ends in the
+same shape `validate` would produce, but **nothing is verified to build**.
+The summary tells you the canonical mathlib path so you can start editing.
 
 ### 3. Edit + `build` — iterate
 
-Open `/…/mathlib-local/Mathlib/Order/MinLayer.lean` and polish: fix
-docstrings, generalize, follow Mathlib's naming. To verify both sides
-still build:
+Open the copy in your local mathlib
+(`…/mathlib/Mathlib/LinearAlgebra/Finsupp/LinearCombination_Upstreamed.lean`)
+and polish: fix docstrings, generalize, follow Mathlib's naming. To verify
+both sides still build:
 
 ```bash
 upstreamer build
 ```
 
 `build` re-runs only the two build phases — `lake build <module>` in
-mathlib and then `lake build` in carleson. Reads the candidate's path
-from `git status`, so no candidate argument needed.
+mathlib and then `lake build` in toric. Reads the candidate's path from
+`git status`, so no candidate argument needed.
 
 If you broke something, exits 1 and surfaces the build error. Fix and
 retry. Iterate until happy.
@@ -163,26 +238,36 @@ retry. Iterate until happy.
 upstreamer commit
 ```
 
-The summary shows the exact next-step commands:
-
 ```
+→ upstream: creating branch 'upstream/linearcombination' and committing …_Upstreamed.lean
+✓ upstream branch 'upstream/linearcombination' has 1 commit
+→ downstream: reverting lakefile + manifest, creating branch 'upstream/linearcombination'
+✓ downstream branch 'upstream/linearcombination' has 1 commit
+  ✓ branches staged for two interrelated PRs
+
   next steps:
-    1. cd /…/mathlib-local && git push -u origin upstream/minlayer
-    2. cd /…/carleson      && git push -u origin upstream/minlayer
+    1. cd …/mathlib && git push -u origin upstream/linearcombination
+    2. cd …/toric   && git push -u origin upstream/linearcombination
 
   to abandon these branches and return to the previous state:
-    cd /…/mathlib-local && git checkout 1a4917a18b && git branch -D upstream/minlayer
-    cd /…/carleson      && git checkout master      && git branch -D upstream/minlayer
+    cd …/mathlib && git checkout <pin> && git branch -D upstream/linearcombination
+    cd …/toric   && git checkout master && git branch -D upstream/linearcombination
+
+  ⚠ collision: the upstream branch contains a `_Upstreamed.lean` file.
+    Before opening the upstream PR, manually merge it with the existing
+    file at the un-suffixed path, and amend the commit (`git commit --amend`).
 ```
 
-The original ref is captured before the branch is created, so the
-abandon line is exact.
+The original ref is captured before the branch is created, so the abandon
+line is exact. On a collision the upstream commit holds the `_Upstreamed`
+file — merge it into the real module and `git commit --amend` before you
+push.
 
 For a more invasive downstream diff that deletes the staging file and
 rewrites all consumer imports, pass `--replace-imports` to `validate`
-(or to `stage`, then `build` to verify, then `commit`). The flag
-belongs to whatever sets up the workspace; `commit` just commits
-whatever shape it finds.
+(or to `stage`, then `build` to verify, then `commit`). The flag belongs
+to whatever sets up the workspace; `commit` just commits whatever shape
+it finds.
 
 ### 4b. `revert` — abandon and return to clean
 
@@ -190,10 +275,17 @@ whatever shape it finds.
 upstreamer revert
 ```
 
+```
+→ upstream: removing …_Upstreamed.lean
+→ downstream: restoring lakefile.toml, lake-manifest.json, candidate
+✓ workspace reverted to pre-validate state
+RESULT	status=revert-ok	…	mode=stub
+```
+
 Removes the untracked mathlib file (and any empty parent directories);
-`git checkout`s the three modified tracked files. Both repos clean,
-plain `lake build` works — Lake's state is back in sync with the
-restored manifest.
+`git checkout`s the modified tracked files. Both repos clean, plain
+`lake build` works — Lake's state is back in sync with the restored
+manifest.
 
 ---
 
@@ -202,7 +294,7 @@ restored manifest.
 | Chain | Outcome |
 |---|---|
 | `baseline` | ✓ clean → clean |
-| `stage --dry-run` | ✓ clean → clean (~60ms) |
+| `stage --dry-run` | ✓ clean → clean (~0.5s) |
 | `stage` → `revert` | ✓ clean → dirty → clean |
 | `stage` → `build` → `revert` | ✓ build verifies, revert cleans |
 | `stage` → `commit` | ✓ stage+commit (no build verification) — **commit succeeds even without verification**; you've signed off on it |
@@ -219,7 +311,7 @@ restored manifest.
 - `validate`: same as stage but also runs builds.
 - `build`: doesn't touch the lakefile.
 - `commit`: explicitly restores lakefile + manifest as part of creating
-  the downstream branch — so the carleson PR's diff is **only the
+  the downstream branch — so the toric PR's diff is **only the
   candidate-related changes**, not infrastructure.
 - `revert`: explicitly restores lakefile + manifest.
 
@@ -236,6 +328,7 @@ Lakefile cleanup happens at exactly two end-points: `commit` and
 | `commit` from clean | ✓ refused, "no untracked .lean file under mathlib's Mathlib/" |
 | `revert` from clean | ✓ refused |
 | `build` from clean | ✓ refused |
+| candidate imports a sibling staging file | ✓ refused, "import audit failed" |
 
 ### After commit: the BRANCHED state
 
@@ -285,13 +378,13 @@ If something goes really wrong (interrupted run, manual edits, stuck on
 PR branches and confused):
 
 ```bash
-# Carleson
-cd /…/carleson
+# toric
+cd ~/upstreamer-project/toric
 git checkout master && git checkout . && git clean -fd && lake update mathlib
 
-# mathlib-local
-cd /…/mathlib-local
-git checkout 1a4917a18b30ea1333c195e597067fe044ac9176
+# mathlib  (re-check-out toric's pinned commit)
+cd ~/upstreamer-project/mathlib
+git checkout <pin>
 git checkout . && git clean -fd
 git branch | grep '^  upstream/' | xargs -r git branch -D
 ```

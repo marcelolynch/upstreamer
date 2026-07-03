@@ -57,7 +57,7 @@ def run (opts : Workflow.Options) (dryRun : Bool := false) : IO Unit := do
   IO.println "  next steps:"
   IO.println s!"    edit {r.upstreamPathAbs}/{r.targetPath} as needed"
   IO.println       "    `upstreamer build`             — verify both sides build"
-  IO.println       "    `upstreamer commit <candidate>` — stage PR branches"
+  IO.println       "    `upstreamer commit`            — stage PR branches"
   IO.println       "    `upstreamer revert`            — abandon"
   IO.println ""
   IO.println s!"RESULT\tstatus=stage-ok\tsource={r.sourceModule}\ttarget={r.targetModule}\tcollision={r.collided}\tduration_ms={elapsed}"

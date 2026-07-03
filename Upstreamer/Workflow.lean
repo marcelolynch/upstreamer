@@ -309,7 +309,7 @@ def printSummary (r : Resolved) (elapsedMs : Nat) : IO Unit := do
   IO.println s!"  duration: {elapsedMs / 1000}s"
   IO.println ""
   IO.println "  next steps:"
-  IO.println       "    `upstreamer commit <candidate>` — stage two PR-ready branches"
+  IO.println       "    `upstreamer commit`             — stage two PR-ready branches"
   IO.println       "    `upstreamer revert`             — abandon"
   IO.println ""
   IO.println s!"RESULT\tstatus=ok\tsource={r.sourceModule}\ttarget={r.targetModule}\tcollision={r.collided}\tduration_ms={elapsedMs}"
