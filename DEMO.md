@@ -2,18 +2,18 @@
 
 A complete walkthrough using [toric](https://github.com/YaelDillies/toric)
 (a downstream that stages Mathlib candidates under `Toric/Mathlib/…`) and a
-local mathlib clone. The trick is to **set up `.upstreamer` once** and then
-run every command with nothing but the candidate name. The tool walks
-upward from CWD to find the config and applies its defaults.
+local mathlib clone. Set up `.upstreamer` once, then run every command with
+just the candidate name. The tool walks upward from CWD to find the config
+and applies its defaults.
 
 ## Phase reference
 
 | Phase | What it does | Workspace before → after |
 |---|---|---|
 | `baseline` | Sanity-check that the downstream still builds against the local upstream AS-IS | clean → clean |
-| `stage` | Copy candidate, redirect lakefile, write re-export stub. **No builds.** | clean → dirty |
+| `stage` | Copy candidate, redirect lakefile, write re-export stub. No builds. | clean → dirty |
 | `stage --dry-run` | Phases 0–2 only (sanity + import audit). | clean → clean |
-| (default, no subcommand) `validate` | Stage **plus** both builds, end-to-end | clean → dirty |
+| (default, no subcommand) `validate` | Stage plus both builds, end-to-end | clean → dirty |
 | `build` | Re-run upstream build + downstream build only. | dirty → dirty |
 | `commit` | Stage two PR-ready branches; downstream lakefile + manifest restored | dirty → on-branches |
 | `revert` | Undo everything stage/validate did | dirty → clean |
@@ -22,8 +22,6 @@ The key invariant: `commit`, `build`, and `revert` read the workspace
 state via `git status` rather than recomputing path mappings — so they
 all compose with whatever `stage` or `validate` left behind. Anything
 else gets a clean refusal.
-
----
 
 ## Setup (do once)
 
@@ -86,7 +84,7 @@ read toric's current mathlib pin from `toric/lake-manifest.json`.)
 
 ### 4. Drop a `.upstreamer` in toric
 
-This is the magic that makes every later command short. Save as
+Save this config file to make every later command short. Save as
 `~/upstreamer-project/toric/.upstreamer`:
 
 ```ini
@@ -108,17 +106,13 @@ upstream-path = ../mathlib
 Two lines (plus comments) is everything the tool needs; the rest comes
 from the preset.
 
-> **Gotcha — keep the config out of git.** `.upstreamer` is an untracked
-> file, so it makes toric's working tree "dirty", and the tool refuses to
-> run on a dirty tree. Since toric isn't your repo, don't commit it —
-> exclude it locally instead:
->
-> ```bash
-> echo ".upstreamer" >> ~/upstreamer-project/toric/.git/info/exclude
-> ```
->
-> (In your own downstream you'd add `.upstreamer` to the tracked
-> `.gitignore` and commit that.)
+Keep the config out of git. `.upstreamer` is an untracked file, so it makes toric's working tree "dirty", and the tool refuses to run on a dirty tree. Since toric isn't your repo, don't commit it — exclude it locally:
+
+```bash
+echo ".upstreamer" >> ~/upstreamer-project/toric/.git/info/exclude
+```
+
+(In your own downstream, add `.upstreamer` to the tracked `.gitignore` and commit that.)
 
 A non-Mathlib project would write:
 
@@ -129,10 +123,7 @@ upstream-namespace = MyUpstream
 search-root        = MyProject.Staging
 ```
 
-Both repos must be **clean** before each tool invocation. The tool
-refuses otherwise.
-
----
+Both repos must be clean before each tool invocation. The tool refuses otherwise.
 
 ## Walkthrough
 
@@ -196,14 +187,7 @@ A candidate that imports a sibling staging file is refused up front:
 upstreamer stage: import audit failed
 ```
 
-> **Note — `collision=true` is the common case here.** toric stages files
-> at `Toric/Mathlib/<mathlib-path>`, i.e. it *extends existing* Mathlib
-> modules (each candidate `public import`s the same-named `Mathlib.…`
-> file). So the target path usually already exists, and the tool copies to
-> a `…_Upstreamed.lean` sibling rather than clobbering it. You merge the
-> two by hand before opening the real PR. A downstream that stages
-> brand-new files (no matching Mathlib path) gets `collision=false` and no
-> suffix.
+Note: `collision=true` is the common case here. toric stages files at `Toric/Mathlib/<mathlib-path>`, extending existing Mathlib modules (each candidate `public import`s the same-named `Mathlib.…` file). The target path usually already exists, so the tool copies to a `…_Upstreamed.lean` sibling rather than clobbering it. You merge the two by hand before opening the real PR. A downstream that stages brand-new files (no matching Mathlib path) gets `collision=false` and no suffix.
 
 ### 2. `stage` — set up the workspace, no builds
 
@@ -212,7 +196,7 @@ upstreamer stage Toric.Mathlib.LinearAlgebra.Finsupp.LinearCombination
 ```
 
 About 5 seconds (file copy + `lake update mathlib`). Workspace ends in the
-same shape `validate` would produce, but **nothing is verified to build**.
+same shape `validate` would produce, but nothing is verified to build.
 The summary tells you the canonical mathlib path so you can start editing.
 
 ### 3. Edit + `build` — iterate
@@ -288,36 +272,29 @@ Removes the untracked mathlib file (and any empty parent directories);
 `lake build` works — Lake's state is back in sync with the restored
 manifest.
 
----
-
 ## All reasonable invocation chains
 
-| Chain | Outcome |
-|---|---|
-| `baseline` | ✓ clean → clean |
-| `stage --dry-run` | ✓ clean → clean (~0.5s) |
-| `stage` → `revert` | ✓ clean → dirty → clean |
-| `stage` → `build` → `revert` | ✓ build verifies, revert cleans |
-| `stage` → `commit` | ✓ stage+commit (no build verification) — **commit succeeds even without verification**; you've signed off on it |
-| `stage` → `build` → `commit` | ✓ — recommended path for cautious iteration |
-| `validate` → `revert` | ✓ |
-| `validate` → `commit` | ✓ |
-| `validate` → `build` (after edit) → `commit` | ✓ |
-| `baseline` → any of the above | ✓ baseline restores everything before exiting |
+- `baseline` — clean → clean
+- `stage --dry-run` — clean → clean (~0.5s)
+- `stage` → `revert` — clean → dirty → clean
+- `stage` → `build` → `revert` — build verifies, revert cleans
+- `stage` → `commit` — stage+commit without build verification (commit succeeds regardless; you've signed off on it)
+- `stage` → `build` → `commit` — recommended for cautious iteration
+- `validate` → `revert`
+- `validate` → `commit`
+- `validate` → `build` (after edit) → `commit`
+- `baseline` → any of the above — baseline restores everything before exiting
 
 ### Where lakefiles get reverted
 
 - `baseline`: rewrites lakefile, restores it (always, even on failure).
-- `stage`: rewrites lakefile, **leaves it redirected**.
+- `stage`: rewrites lakefile, leaves it redirected.
 - `validate`: same as stage but also runs builds.
 - `build`: doesn't touch the lakefile.
-- `commit`: explicitly restores lakefile + manifest as part of creating
-  the downstream branch — so the toric PR's diff is **only the
-  candidate-related changes**, not infrastructure.
+- `commit`: explicitly restores lakefile + manifest as part of creating the downstream branch, so the toric PR's diff contains only candidate-related changes, not infrastructure.
 - `revert`: explicitly restores lakefile + manifest.
 
-Lakefile cleanup happens at exactly two end-points: `commit` and
-`revert`. Both subcommands own the full transition out of the dirty state.
+Lakefile cleanup happens at exactly two end-points: `commit` and `revert`. Both subcommands own the full transition out of the dirty state.
 
 ### Refusals
 
@@ -335,20 +312,10 @@ Lakefile cleanup happens at exactly two end-points: `commit` and
 
 `commit` leaves both repos on `upstream/<name>` branches. From there:
 
-- **Push and open PRs**: use the `git push -u origin upstream/<name>`
-  lines from the commit summary.
-- **Abandon**: use the `git checkout … && git branch -D upstream/<name>`
-  lines. The original ref is captured at commit-time so the commands
-  are exact.
-- **Iterate further**: edit on the branch, `git commit --amend` or add
-  new commits, force-push.
-- **Move to the next candidate**: abandon (or push) first, then start a
-  new `validate`/`stage` cycle. The tool refuses to run a fresh
-  stage/validate while in BRANCHED state because the working tree is
-  technically "clean" but starting a new stage on top of `upstream/<old>`
-  would entangle them.
-
----
+- Push and open PRs: use the `git push -u origin upstream/<name>` lines from the commit summary.
+- Abandon: use the `git checkout … && git branch -D upstream/<name>` lines. The original ref is captured at commit-time so the commands are exact.
+- Iterate further: edit on the branch, `git commit --amend` or add new commits, force-push.
+- Move to the next candidate: abandon (or push) first, then start a new `validate`/`stage` cycle. The tool refuses to run a fresh stage/validate while in BRANCHED state because the working tree is technically "clean" but starting a new stage on top of `upstream/<old>` would entangle them.
 
 ## Quick reference
 
