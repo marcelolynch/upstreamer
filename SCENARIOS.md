@@ -7,7 +7,7 @@ note on what the workspace looks like after. The running example is
 candidates under `Toric/Mathlib/…`.
 
 Throughout, `…` stands in for path prefixes you'd substitute (e.g.
-`~/upstreamer-project`). Without a config file, both
+`~/upstreaming`). Without a config file, both
 `--downstream <path> --upstream-path <path>` are required; the candidate
 argument can be a `.lean` path or a dotted module name.
 

@@ -29,7 +29,7 @@ The examples assume a workspace laid out as siblings — adjust the paths to
 wherever you keep things:
 
 ```
-~/upstreamer-project/
+~/upstreaming/
 ├── upstreamer     # this tool
 ├── toric          # the downstream (github.com/YaelDillies/toric)
 └── mathlib        # a local mathlib clone at toric's pinned commit
@@ -38,7 +38,7 @@ wherever you keep things:
 ### 1. Build the tool
 
 ```bash
-cd ~/upstreamer-project/upstreamer
+cd ~/upstreaming/upstreamer
 lake build
 ```
 
@@ -48,10 +48,10 @@ verbatim:
 
 ```bash
 # Option A: alias for this session.
-alias upstreamer=~/upstreamer-project/upstreamer/.lake/build/bin/upstreamer
+alias upstreamer=~/upstreaming/upstreamer/.lake/build/bin/upstreamer
 
 # Option B: put the build dir on PATH.
-export PATH="$HOME/upstreamer-project/upstreamer/.lake/build/bin:$PATH"
+export PATH="$HOME/upstreaming/upstreamer/.lake/build/bin:$PATH"
 ```
 
 (Avoid `lake exe upstreamer …` — it works but masks the binary's exit
@@ -60,7 +60,7 @@ code, which makes scripting awkward.)
 ### 2. Clone the downstream
 
 ```bash
-cd ~/upstreamer-project
+cd ~/upstreaming
 git clone https://github.com/YaelDillies/toric.git
 git -C toric checkout 39eff375c59f4897d348b2aa88b7a5399839a1c5   # the toric commit this guide was validated against
 ```
@@ -72,7 +72,7 @@ toric commit above pins its mathlib at `ed585ca0`; check out that exact
 commit in your local mathlib clone and prime the olean cache:
 
 ```bash
-cd ~/upstreamer-project/mathlib
+cd ~/upstreaming/mathlib
 git checkout ed585ca0f67ec631ea987466127e022c11849b43   # the mathlib commit toric pins at the commit above
 lake exe cache get        # downloads ~8.6k prebuilt Mathlib oleans
 ```
@@ -85,7 +85,7 @@ read toric's current mathlib pin from `toric/lake-manifest.json`.)
 ### 4. Drop a `.upstreamer` in toric
 
 Save this config file to make every later command short. Save as
-`~/upstreamer-project/toric/.upstreamer`:
+`~/upstreaming/toric/.upstreamer`:
 
 ```ini
 # toric upstreamer config.
@@ -109,7 +109,7 @@ from the preset.
 Keep the config out of git. `.upstreamer` is an untracked file, so it makes toric's working tree "dirty", and the tool refuses to run on a dirty tree. Since toric isn't your repo, don't commit it — exclude it locally:
 
 ```bash
-echo ".upstreamer" >> ~/upstreamer-project/toric/.git/info/exclude
+echo ".upstreamer" >> ~/upstreaming/toric/.git/info/exclude
 ```
 
 (In your own downstream, add `.upstreamer` to the tracked `.gitignore` and commit that.)
@@ -134,7 +134,7 @@ path or a dotted module name.
 ### 0. `baseline` — does the downstream even build against this mathlib?
 
 ```bash
-cd ~/upstreamer-project/toric
+cd ~/upstreaming/toric
 upstreamer baseline
 ```
 
@@ -347,11 +347,11 @@ PR branches and confused):
 
 ```bash
 # toric
-cd ~/upstreamer-project/toric
+cd ~/upstreaming/toric
 git checkout 39eff375c59f4897d348b2aa88b7a5399839a1c5 && git checkout . && git clean -fd && lake update mathlib
 
 # mathlib  (re-check-out toric's pinned commit)
-cd ~/upstreamer-project/mathlib
+cd ~/upstreaming/mathlib
 git checkout ed585ca0f67ec631ea987466127e022c11849b43
 git checkout . && git clean -fd
 git branch | grep '^  upstream/' | xargs -r git branch -D
