@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 The `revert` phase: undoes everything `validate` did, returning both
 repositories to their pre-validate state. Operates entirely on what's
 visible in `git status` — the user doesn't have to remember the candidate

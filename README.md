@@ -1,5 +1,9 @@
 # upstreamer
 
+> **Work in progress.** This tool is experimental. The subcommands, flags and
+> config format can change without notice. Check what the tool did before you
+> push the branches that it makes.
+
 A tool that automates the "is this file ready to upstream?" loop for downstream
 projects (like [toric](https://github.com/YaelDillies/toric) or
 [Carleson](https://github.com/leanprover-community/carleson)) that stage
@@ -29,10 +33,16 @@ clone, the tool:
 7. Runs `lake build` in the downstream. If it succeeds, the file is
    upstream-ready (modulo merging the `_Upstreamed` variant, if any).
 
+## Building
+
+Run `lake build`. The binary is at `.lake/build/bin/upstreamer`. Put that
+directory on your `PATH` or make an alias to it. The examples below use a bare
+`upstreamer`.
+
 ## Usage
 
 ```
-lake exe upstreamer <candidate.lean> \
+upstreamer <candidate.lean> \
   --upstream-path /path/to/local/upstream \
   --preset mathlib \
   [--downstream /path/to/downstream] \
@@ -131,3 +141,7 @@ Recognized keys:
   the tool refuses up front; upstream those first.
 - No automated post-commit revert: `commit` prints the exact commands to
   abandon the staged branches; `revert` only handles the pre-commit dirty state.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).

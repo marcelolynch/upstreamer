@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 Command-line surface for `upstreamer`, built on `leanprover/lean4-cli`.
 
 The tool is upstream-agnostic. The `--preset mathlib` flag (or

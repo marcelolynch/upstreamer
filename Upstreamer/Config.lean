@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 A `.upstreamer` config file in the downstream root that supplies defaults
 for the upstream-side parameters, sparing the user from retyping them on
 every invocation. CLI flags always win.

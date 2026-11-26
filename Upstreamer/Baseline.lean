@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 The `baseline` phase. Pre-flight check: does the downstream still build
 against the local mathlib *before* we touch anything? If this fails, any
 later `validate` downstream-build failure is a property of the local

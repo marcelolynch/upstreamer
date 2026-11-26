@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 The `commit` phase. After `validate` (or `stage` + `build`) succeeds,
 this stages the resulting workspace onto fresh branches in both
 repositories, ready for two interrelated PRs:

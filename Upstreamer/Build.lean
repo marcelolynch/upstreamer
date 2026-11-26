@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 The `build` phase: re-runs the two build phases — building the
 upstreamed file inside the upstream, then building the downstream
 against it — without re-copying the candidate or re-rewriting the

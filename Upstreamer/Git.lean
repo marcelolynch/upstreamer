@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 Tiny shell-out wrappers for git, used to enforce the dirty-tree refusal and
 read commit SHAs.
 -/

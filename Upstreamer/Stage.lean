@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 The `stage` phase: runs everything `validate` does except the two builds.
 
 After staging, the workspace is in the **same shape** as a successful

@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 Line-based scanner for `import` / `public import` directives in a .lean file.
 Used to refuse upstreaming up front when a candidate depends on sibling
 staging files or other downstream code.

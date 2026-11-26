@@ -1,4 +1,9 @@
 /-
+Copyright (c) 2026 Marcelo Lynch. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Marcelo Lynch
+-/
+/-
 Post-validate state detection, shared by the `commit`, `revert`, and
 `build` subcommands. None of them recompute path mappings — they all
 read what validate left behind out of `git status`.
